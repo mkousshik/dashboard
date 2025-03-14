@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar, LineChart, BarChart3, Filter, Download, RefreshCcw, MapPin, Database } from 'lucide-react';
+import { Calendar, LineChart, BarChart3, Filter, Download, RefreshCcw, MapPin } from 'lucide-react';
 import { weatherNodes } from '../data/nodes';
 import { loggerInfos } from '../data/loggerInfo';
 import { timeRanges } from '../data/timeRanges';
@@ -120,22 +120,6 @@ const DataAnalysisPage = () => {
     };
   }, [filteredNodes]);
 
-  // Calculate total data volume
-  const dataVolume = useMemo(() => {
-    const bytesPerReading = 100; // Approximate bytes per reading
-    const totalReadings = filteredNodes.length * aggregatedData.length;
-    const totalBytes = totalReadings * bytesPerReading;
-    
-    if (totalBytes > 1000000000) {
-      return `${(totalBytes / 1000000000).toFixed(2)} GB`;
-    } else if (totalBytes > 1000000) {
-      return `${(totalBytes / 1000000).toFixed(2)} MB`;
-    } else if (totalBytes > 1000) {
-      return `${(totalBytes / 1000).toFixed(2)} KB`;
-    }
-    return `${totalBytes} bytes`;
-  }, [filteredNodes.length, aggregatedData.length]);
-
   const getViewModeLabel = () => {
     if (viewMode === 'region' && selectedRegion) {
       const region = loggerRegions.find(r => r.prefix === selectedRegion);
@@ -215,7 +199,7 @@ const DataAnalysisPage = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-500 dark:text-gray-400">Active Nodes</h3>
@@ -246,19 +230,6 @@ const DataAnalysisPage = () => {
           <div className="text-3xl font-bold text-gray-800 dark:text-white">
             {systemSummary.averageHumidity.toFixed(1)}%
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-500 dark:text-gray-400">Data Volume</h3>
-            <Database className="text-indigo-500" />
-          </div>
-          <div className="text-3xl font-bold text-gray-800 dark:text-white">
-            {dataVolume}
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Total collected data
-          </p>
         </div>
       </div>
 

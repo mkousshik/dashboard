@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, X, Home, Settings, User, Map, BarChart, Database } from 'lucide-react';
+import { Menu, X, Home, Map, Database } from 'lucide-react';
 import NavItem from './NavItem';
 import ThemeToggle from './ThemeToggle';
 import { useSidebar } from '../context/SidebarContext';
@@ -10,10 +10,7 @@ const Sidebar = () => {
   const navItems = [
     { icon: Home, label: 'Home', to: '/' },
     { icon: Map, label: 'View Map', to: '/map' },
-    { icon: BarChart, label: 'Data Analysis', to: '/analysis' },
-    { icon: Database, label: 'Data Points', to: '/data-points' },
-    { icon: User, label: 'Profile', to: '/profile' },
-    { icon: Settings, label: 'Settings', to: '/settings' },
+    { icon: Database, label: 'Data Analysis', to: '/analysis' },
   ];
 
   return (

@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.ol-control {
+  background: none;
+  padding: 0;
+}
+
+.ol-zoom {
+  top: 1rem;
+  left: 1rem;
+}
+
+.ol-zoom button {
+  background-color: white;
+  color: #4B5563;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  margin: 2px;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.25rem;
+  transition: all 0.2s;
+}
+
+.ol-zoom button:hover {
+  background-color: #F3F4F6;
+  color: #2563EB;
+}
+
+.dark .ol-zoom button {
+  background-color: #1F2937;
+  color: #9CA3AF;
+  border-color: #374151;
+}
+
+.dark .ol-zoom button:hover {
+  background-color: #374151;
+  color: #60A5FA;
+}
+
+.ol-attribution {
+  bottom: 0.5rem;
+  right: 0.5rem;
+}
+
+.ol-attribution button {
+  background-color: rgba(255, 255, 255, 0.8);
+  color: #4B5563;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  padding: 0 0.5rem;
+}
+
+.dark .ol-attribution button {
+  background-color: rgba(31, 41, 55, 0.8);
+  color: #9CA3AF;
+  border-color: #374151;
+}

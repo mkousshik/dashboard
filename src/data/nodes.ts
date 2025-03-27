@@ -12,6 +12,45 @@ const randomDate = () => {
   return date.toISOString().split('T')[0];
 };
 
+// Function to generate anomalous data
+const generateAnomalousData = () => {
+  // Generate extreme or invalid values
+  return {
+    temperature: random(-20, 60),      // Normal range: -10 to 50
+    humidity: random(-10, 120),        // Normal range: 0 to 100
+    pressure: random(800, 1200),       // Normal range: 870 to 1090
+    windSpeed: random(0, 150),         // Normal range: 0 to 100
+    windDirection: random(0, 360),
+    rainfall: random(0, 800),          // Normal range: 0 to 500
+    airQuality: {
+      pm25: random(0, 800),           // Normal range: 0 to 500
+      pm10: random(0, 1000),          // Normal range: 0 to 600
+      ozone: random(0, 600),          // Normal range: 0 to 400
+      no2: random(0, 300),            // Normal range: 0 to 200
+    },
+    uvIndex: random(0, 15)            // Normal range: 0 to 12
+  };
+};
+
+// Function to generate normal data
+const generateNormalData = () => {
+  return {
+    temperature: random(15, 40),
+    humidity: random(30, 90),
+    pressure: random(980, 1020),
+    windSpeed: random(0, 20),
+    windDirection: random(0, 360),
+    rainfall: random(0, 50),
+    airQuality: {
+      pm25: random(0, 150),
+      pm10: random(0, 200),
+      ozone: random(0, 100),
+      no2: random(0, 50)
+    },
+    uvIndex: randomInt(0, 12)
+  };
+};
+
 // Define logger regions with their prefixes
 export const loggerRegions = [
   { prefix: 'MUM', name: 'Mumbai', state: 'Maharashtra', coords: [72.8777, 19.0760] },
@@ -39,6 +78,25 @@ export const weatherNodes: WeatherNode[] = Array.from({ length: 200 }, (_, i) =>
   // Generate logger ID with region prefix and sequential number
   const loggerId = `${loggerRegion.prefix}-01`;
   
+  // For active nodes, 20% chance of generating anomalous data
+  const measurements = status === 'active' 
+    ? (Math.random() < 0.2 ? generateAnomalousData() : generateNormalData())
+    : {
+        temperature: 0,
+        humidity: 0,
+        pressure: 0,
+        windSpeed: 0,
+        windDirection: 0,
+        rainfall: 0,
+        airQuality: {
+          pm25: 0,
+          pm10: 0,
+          ozone: 0,
+          no2: 0
+        },
+        uvIndex: 0
+      };
+  
   // Generate node data
   const node: WeatherNode = {
     id: `WN${(i + 1).toString().padStart(4, '0')}`,
@@ -50,21 +108,7 @@ export const weatherNodes: WeatherNode[] = Array.from({ length: 200 }, (_, i) =>
       signalStrength: status === 'active' ? randomInt(70, 100) : randomInt(0, 40),
       lastMaintenance: randomDate(),
     },
-    measurements: {
-      temperature: random(15, 40),
-      humidity: random(30, 90),
-      pressure: random(980, 1020),
-      windSpeed: random(0, 20),
-      windDirection: random(0, 360),
-      rainfall: random(0, 50),
-      airQuality: {
-        pm25: random(0, 150),
-        pm10: random(0, 200),
-        ozone: random(0, 100),
-        no2: random(0, 50)
-      },
-      uvIndex: randomInt(0, 12)
-    },
+    measurements,
     description: `Weather monitoring station in ${loggerRegion.name} metropolitan area`,
     location: {
       city: loggerRegion.name,
@@ -73,25 +117,6 @@ export const weatherNodes: WeatherNode[] = Array.from({ length: 200 }, (_, i) =>
     },
     loggerId
   };
-  
-  // If status is inactive, set measurements to 0
-  if (status === 'inactive') {
-    node.measurements = {
-      temperature: 0,
-      humidity: 0,
-      pressure: 0,
-      windSpeed: 0,
-      windDirection: 0,
-      rainfall: 0,
-      airQuality: {
-        pm25: 0,
-        pm10: 0,
-        ozone: 0,
-        no2: 0
-      },
-      uvIndex: 0
-    };
-  }
   
   return node;
 });

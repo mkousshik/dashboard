@@ -4,6 +4,7 @@ import { LoggerInfo } from '../../types/logger';
 import { WeatherNode } from '../../types/node';
 import { timeRanges } from '../../data/timeRanges';
 import { TimePeriod } from '../../types/nodeHistory';
+import { isValidForAggregation } from '../../utils/anomalyDetection';
 
 interface DataAnalysisTabProps {
   logger: LoggerInfo;
@@ -15,29 +16,29 @@ const DataAnalysisTab: React.FC<DataAnalysisTabProps> = ({ logger, connectedNode
 
   // Calculate current averages from active nodes
   const currentAverages = useMemo(() => {
-    const activeNodes = connectedNodes.filter(node => node.status === 'active');
-    if (activeNodes.length === 0) return null;
+    const validNodes = connectedNodes.filter(node => isValidForAggregation(node));
+    if (validNodes.length === 0) return null;
 
     return {
-      temperature: activeNodes.reduce((sum, node) => sum + node.measurements.temperature, 0) / activeNodes.length,
-      humidity: activeNodes.reduce((sum, node) => sum + node.measurements.humidity, 0) / activeNodes.length,
-      pressure: activeNodes.reduce((sum, node) => sum + node.measurements.pressure, 0) / activeNodes.length,
-      windSpeed: activeNodes.reduce((sum, node) => sum + node.measurements.windSpeed, 0) / activeNodes.length,
-      rainfall: activeNodes.reduce((sum, node) => sum + node.measurements.rainfall, 0) / activeNodes.length,
+      temperature: validNodes.reduce((sum, node) => sum + node.measurements.temperature, 0) / validNodes.length,
+      humidity: validNodes.reduce((sum, node) => sum + node.measurements.humidity, 0) / validNodes.length,
+      pressure: validNodes.reduce((sum, node) => sum + node.measurements.pressure, 0) / validNodes.length,
+      windSpeed: validNodes.reduce((sum, node) => sum + node.measurements.windSpeed, 0) / validNodes.length,
+      rainfall: validNodes.reduce((sum, node) => sum + node.measurements.rainfall, 0) / validNodes.length,
       airQuality: {
-        pm25: activeNodes.reduce((sum, node) => sum + node.measurements.airQuality.pm25, 0) / activeNodes.length,
-        pm10: activeNodes.reduce((sum, node) => sum + node.measurements.airQuality.pm10, 0) / activeNodes.length,
-        ozone: activeNodes.reduce((sum, node) => sum + node.measurements.airQuality.ozone, 0) / activeNodes.length,
-        no2: activeNodes.reduce((sum, node) => sum + node.measurements.airQuality.no2, 0) / activeNodes.length,
+        pm25: validNodes.reduce((sum, node) => sum + node.measurements.airQuality.pm25, 0) / validNodes.length,
+        pm10: validNodes.reduce((sum, node) => sum + node.measurements.airQuality.pm10, 0) / validNodes.length,
+        ozone: validNodes.reduce((sum, node) => sum + node.measurements.airQuality.ozone, 0) / validNodes.length,
+        no2: validNodes.reduce((sum, node) => sum + node.measurements.airQuality.no2, 0) / validNodes.length,
       },
-      uvIndex: activeNodes.reduce((sum, node) => sum + node.measurements.uvIndex, 0) / activeNodes.length,
+      uvIndex: validNodes.reduce((sum, node) => sum + node.measurements.uvIndex, 0) / validNodes.length,
     };
   }, [connectedNodes]);
 
   if (!currentAverages) {
     return (
       <div className="p-6 text-center text-gray-500 dark:text-gray-400">
-        No active nodes to display data
+        No valid nodes to display data
       </div>
     );
   }
@@ -72,10 +73,10 @@ const DataAnalysisTab: React.FC<DataAnalysisTabProps> = ({ logger, connectedNode
             <h3 className="font-medium text-gray-800 dark:text-white">Temperature</h3>
           </div>
           <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {currentAverages.temperature.toFixed(1)}°C
+            {Math.round(currentAverages.temperature)}°C
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            Average across {logger.connectedNodes.active} active nodes
+            Average across valid nodes
           </div>
         </div>
 
@@ -86,7 +87,7 @@ const DataAnalysisTab: React.FC<DataAnalysisTabProps> = ({ logger, connectedNode
             <h3 className="font-medium text-gray-800 dark:text-white">Humidity</h3>
           </div>
           <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {currentAverages.humidity.toFixed(1)}%
+            {Math.round(currentAverages.humidity)}%
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Average relative humidity
@@ -100,7 +101,7 @@ const DataAnalysisTab: React.FC<DataAnalysisTabProps> = ({ logger, connectedNode
             <h3 className="font-medium text-gray-800 dark:text-white">Pressure</h3>
           </div>
           <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {currentAverages.pressure.toFixed(1)} hPa
+            {Math.round(currentAverages.pressure)} hPa
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Atmospheric pressure
@@ -114,7 +115,7 @@ const DataAnalysisTab: React.FC<DataAnalysisTabProps> = ({ logger, connectedNode
             <h3 className="font-medium text-gray-800 dark:text-white">Wind Speed</h3>
           </div>
           <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {currentAverages.windSpeed.toFixed(1)} m/s
+            {Math.round(currentAverages.windSpeed)} m/s
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Average wind speed
@@ -128,7 +129,7 @@ const DataAnalysisTab: React.FC<DataAnalysisTabProps> = ({ logger, connectedNode
             <h3 className="font-medium text-gray-800 dark:text-white">Rainfall</h3>
           </div>
           <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {currentAverages.rainfall.toFixed(1)} mm
+            {Math.round(currentAverages.rainfall)} mm
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Total precipitation
@@ -145,13 +146,13 @@ const DataAnalysisTab: React.FC<DataAnalysisTabProps> = ({ logger, connectedNode
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600 dark:text-gray-400">PM2.5</span>
               <span className="font-medium text-gray-800 dark:text-gray-200">
-                {currentAverages.airQuality.pm25.toFixed(1)} µg/m³
+                {Math.round(currentAverages.airQuality.pm25)} µg/m³
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600 dark:text-gray-400">PM10</span>
               <span className="font-medium text-gray-800 dark:text-gray-200">
-                {currentAverages.airQuality.pm10.toFixed(1)} µg/m³
+                {Math.round(currentAverages.airQuality.pm10)} µg/m³
               </span>
             </div>
           </div>

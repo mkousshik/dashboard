@@ -4,6 +4,7 @@ import { LoggerInfo } from '../../types/logger';
 import { weatherNodes } from '../../data/nodes';
 import { WeatherNode } from '../../types/node';
 import DataAnalysisTab from './DataAnalysisTab';
+import { checkNodeAnomalies } from '../../utils/anomalyDetection';
 
 interface LoggerModalProps {
   logger: LoggerInfo;
@@ -25,90 +26,102 @@ const LoggerModal: React.FC<LoggerModalProps> = ({ logger, onClose }) => {
   const { connectedNodes, nodeCounts } = useMemo(() => {
     const nodes = weatherNodes.filter(node => node.loggerId === logger.id);
     const activeNodes = nodes.filter(node => node.status === 'active');
+    const anomalousNodes = activeNodes.filter(node => checkNodeAnomalies(node).hasAnomaly);
     return {
       connectedNodes: nodes,
       nodeCounts: {
         total: nodes.length,
         active: activeNodes.length,
-        deactivated: nodes.length - activeNodes.length
+        deactivated: nodes.length - activeNodes.length,
+        anomalous: anomalousNodes.length
       }
     };
   }, [logger.id]);
 
-  const NodeCard: React.FC<{ node: WeatherNode }> = ({ node }) => (
-    <div className="bg-white dark:bg-gray-700 rounded-lg shadow p-4">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h4 className="font-medium text-gray-800 dark:text-white">{node.name}</h4>
-          <span className="text-sm text-gray-500 dark:text-gray-400">#{node.id}</span>
-        </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium
-          ${node.status === 'active' 
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-            : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
-          {node.status.charAt(0).toUpperCase() + node.status.slice(1)}
-        </span>
-      </div>
-
-      {node.status === 'active' && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <ThermometerSun size={14} className="text-orange-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                {node.measurements.temperature.toFixed(1)}°C
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Droplets size={14} className="text-blue-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                {node.measurements.humidity.toFixed(1)}%
-              </span>
-            </div>
+  const NodeCard: React.FC<{ node: WeatherNode }> = ({ node }) => {
+    const anomalyReport = checkNodeAnomalies(node);
+    return (
+      <div className="bg-white dark:bg-gray-700 rounded-lg shadow p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h4 className="font-medium text-gray-800 dark:text-white">{node.name}</h4>
+            <span className="text-sm text-gray-500 dark:text-gray-400">#{node.id}</span>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Wind size={14} className="text-cyan-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                {node.measurements.windSpeed.toFixed(1)} m/s
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CloudRain size={14} className="text-blue-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                {node.measurements.rainfall.toFixed(1)} mm
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-600">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Battery</span>
-            <span className={`text-xs font-medium ${
-              node.health.battery > 70 ? 'text-green-600 dark:text-green-400' :
-              node.health.battery > 30 ? 'text-yellow-600 dark:text-yellow-400' :
-              'text-red-600 dark:text-red-400'
-            }`}>
-              {node.health.battery}%
+          <div className="flex flex-col items-end gap-1">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium
+              ${node.status === 'active' 
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+              {node.status.charAt(0).toUpperCase() + node.status.slice(1)}
             </span>
+            {anomalyReport.hasAnomaly && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
+                Anomalous
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Signal</span>
-            <span className={`text-xs font-medium ${
-              node.health.signalStrength > 70 ? 'text-green-600 dark:text-green-400' :
-              node.health.signalStrength > 30 ? 'text-yellow-600 dark:text-yellow-400' :
-              'text-red-600 dark:text-red-400'
-            }`}>
-              {node.health.signalStrength}%
-            </span>
+        </div>
+
+        {node.status === 'active' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ThermometerSun size={14} className={anomalyReport.anomalies.some(a => a.field === 'temperature') ? 'text-red-500' : 'text-orange-500'} />
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  {Math.round(node.measurements.temperature)}°C
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Droplets size={14} className={anomalyReport.anomalies.some(a => a.field === 'humidity') ? 'text-red-500' : 'text-blue-500'} />
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  {Math.round(node.measurements.humidity)}%
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Wind size={14} className={anomalyReport.anomalies.some(a => a.field === 'windSpeed') ? 'text-red-500' : 'text-cyan-500'} />
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  {Math.round(node.measurements.windSpeed)} m/s
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CloudRain size={14} className={anomalyReport.anomalies.some(a => a.field === 'rainfall') ? 'text-red-500' : 'text-blue-500'} />
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  {Math.round(node.measurements.rainfall)} mm
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-600">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Battery</span>
+              <span className={`text-xs font-medium ${
+                node.health.battery > 70 ? 'text-green-600 dark:text-green-400' :
+                node.health.battery > 30 ? 'text-yellow-600 dark:text-yellow-400' :
+                'text-red-600 dark:text-red-400'
+              }`}>
+                {Math.round(node.health.battery)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Signal</span>
+              <span className={`text-xs font-medium ${
+                node.health.signalStrength > 70 ? 'text-green-600 dark:text-green-400' :
+                node.health.signalStrength > 30 ? 'text-yellow-600 dark:text-yellow-400' :
+                'text-red-600 dark:text-red-400'
+              }`}>
+                {Math.round(node.health.signalStrength)}%
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -187,7 +200,7 @@ const LoggerModal: React.FC<LoggerModalProps> = ({ logger, onClose }) => {
                     <Server className="text-blue-500" size={20} />
                     <h3 className="font-medium text-gray-800 dark:text-white">Connected Nodes</h3>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-4 gap-4">
                     <div>
                       <div className="text-2xl font-bold text-gray-800 dark:text-white">
                         {nodeCounts.total}
@@ -206,6 +219,12 @@ const LoggerModal: React.FC<LoggerModalProps> = ({ logger, onClose }) => {
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">Deactivated</div>
                     </div>
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                        {nodeCounts.anomalous}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Anomalous</div>
+                    </div>
                   </div>
                 </div>
 
@@ -222,7 +241,7 @@ const LoggerModal: React.FC<LoggerModalProps> = ({ logger, onClose }) => {
                           <span className="text-sm text-gray-600 dark:text-gray-300">CPU Usage</span>
                         </div>
                         <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                          {logger.system.cpu.usage.toFixed(1)}%
+                          {Math.round(logger.system.cpu.usage)}%
                         </span>
                       </div>
                       <div className="h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
@@ -239,7 +258,7 @@ const LoggerModal: React.FC<LoggerModalProps> = ({ logger, onClose }) => {
                           <span className="text-sm text-gray-600 dark:text-gray-300">RAM Usage</span>
                         </div>
                         <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                          {logger.system.ram.used.toFixed(1)} / {logger.system.ram.total} GB
+                          {Math.round(logger.system.ram.used)} / {logger.system.ram.total} GB
                         </span>
                       </div>
                       <div className="h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">

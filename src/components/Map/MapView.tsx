@@ -9,7 +9,7 @@ import XYZ from 'ol/source/XYZ';
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import { fromLonLat } from 'ol/proj';
-import { Circle as CircleStyle, Fill, Style } from 'ol/style';
+import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style';
 import { weatherNodes } from '../../data/nodes';
 import { loggerInfos } from '../../data/loggerInfo';
 import { WeatherNode } from '../../types/node';
@@ -17,6 +17,7 @@ import { LoggerInfo } from '../../types/logger';
 import NodeModal from './NodeModal';
 import LoggerModal from './LoggerModal';
 import { Layers } from 'lucide-react';
+import { checkNodeAnomalies } from '../../utils/anomalyDetection';
 
 type ViewMode = 'nodes' | 'loggers';
 
@@ -35,18 +36,23 @@ const MapView: React.FC = () => {
     // Create vector source and features for nodes
     const nodesSource = new VectorSource();
     weatherNodes.forEach(node => {
+      const anomalyReport = checkNodeAnomalies(node);
       const feature = new Feature({
         geometry: new Point(fromLonLat(node.coordinates)),
         node: node,
         type: 'node'
       });
 
+      let fillColor = '#ef4444'; // red for inactive
+      if (node.status === 'active') {
+        fillColor = anomalyReport.hasAnomaly ? '#f59e0b' : '#22c55e'; // orange for anomaly, green for normal
+      }
+
       feature.setStyle(new Style({
         image: new CircleStyle({
-          radius: 4,
-          fill: new Fill({ 
-            color: node.status === 'active' ? '#22c55e' : '#ef4444'
-          })
+          radius: 6,
+          fill: new Fill({ color: fillColor }),
+          stroke: anomalyReport.hasAnomaly ? new Stroke({ color: '#ef4444', width: 2 }) : undefined
         })
       }));
 
@@ -164,18 +170,33 @@ const MapView: React.FC = () => {
         </div>
         <div className="mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span className="text-xs text-gray-600 dark:text-gray-300">
-                {viewMode === 'nodes' ? 'Active Node' : 'Online Logger'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <span className="text-xs text-gray-600 dark:text-gray-300">
-                {viewMode === 'nodes' ? 'Inactive Node' : 'Offline Logger'}
-              </span>
-            </div>
+            {viewMode === 'nodes' ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Active Node</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Anomalous Data</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Inactive Node</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Online Logger</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Offline Logger</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Battery, Signal, ThermometerSun, Droplets, Calendar, MapPin, ArrowUp, Info, Clock, Wind, Gauge, CloudRain, Sun } from 'lucide-react';
+import { X, Battery, Signal, ThermometerSun, Droplets, Calendar, MapPin, ArrowUp, Info, Clock, Wind, Gauge, CloudRain, Sun, AlertTriangle } from 'lucide-react';
 import { WeatherNode } from '../../types/node';
+import { checkNodeAnomalies } from '../../utils/anomalyDetection';
 
 interface NodeModalProps {
   node: WeatherNode;
@@ -8,6 +9,8 @@ interface NodeModalProps {
 }
 
 const NodeModal: React.FC<NodeModalProps> = ({ node, onClose }) => {
+  const anomalyReport = checkNodeAnomalies(node);
+
   const getStatusColor = (status: string) => 
     status === 'active' 
       ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' 
@@ -38,6 +41,14 @@ const NodeModal: React.FC<NodeModalProps> = ({ node, onClose }) => {
     return directions[index];
   };
 
+  const isAnomalous = (field: string) => {
+    return anomalyReport.anomalies.some(a => a.field === field);
+  };
+
+  const getValueColor = (field: string) => {
+    return isAnomalous(field) ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200';
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl">
@@ -47,9 +58,17 @@ const NodeModal: React.FC<NodeModalProps> = ({ node, onClose }) => {
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{node.name}</h2>
               <span className="text-sm text-gray-500 dark:text-gray-400">#{node.id}</span>
             </div>
-            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mt-2 ${getStatusColor(node.status)}`}>
-              {node.status.charAt(0).toUpperCase() + node.status.slice(1)}
-            </span>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(node.status)}`}>
+                {node.status.charAt(0).toUpperCase() + node.status.slice(1)}
+              </span>
+              {anomalyReport.hasAnomaly && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">
+                  <AlertTriangle size={14} />
+                  Anomalous Data
+                </span>
+              )}
+            </div>
           </div>
           <button 
             onClick={onClose}
@@ -58,6 +77,22 @@ const NodeModal: React.FC<NodeModalProps> = ({ node, onClose }) => {
             <X size={20} className="text-gray-500 dark:text-gray-400" />
           </button>
         </div>
+
+        {anomalyReport.hasAnomaly && (
+          <div className="mx-6 mt-6 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded">
+            <h3 className="text-red-800 dark:text-red-300 font-medium mb-2 flex items-center gap-2">
+              <AlertTriangle size={16} />
+              Anomaly Detection
+            </h3>
+            <ul className="space-y-1">
+              {anomalyReport.anomalies.map((anomaly, index) => (
+                <li key={index} className="text-sm text-red-700 dark:text-red-400">
+                  • {anomaly.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -87,24 +122,24 @@ const NodeModal: React.FC<NodeModalProps> = ({ node, onClose }) => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <ThermometerSun className="text-orange-500" size={16} />
+                      <ThermometerSun className={isAnomalous('temperature') ? 'text-red-500' : 'text-orange-500'} size={16} />
                       <span className="text-gray-600 dark:text-gray-300">Temperature</span>
                     </div>
-                    <span className="text-gray-800 dark:text-gray-200">{Math.round(node.measurements.temperature)}°C</span>
+                    <span className={getValueColor('temperature')}>{Math.round(node.measurements.temperature)}°C</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Droplets className="text-blue-500" size={16} />
+                      <Droplets className={isAnomalous('humidity') ? 'text-red-500' : 'text-blue-500'} size={16} />
                       <span className="text-gray-600 dark:text-gray-300">Humidity</span>
                     </div>
-                    <span className="text-gray-800 dark:text-gray-200">{Math.round(node.measurements.humidity)}%</span>
+                    <span className={getValueColor('humidity')}>{Math.round(node.measurements.humidity)}%</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Gauge className="text-purple-500" size={16} />
+                      <Gauge className={isAnomalous('pressure') ? 'text-red-500' : 'text-purple-500'} size={16} />
                       <span className="text-gray-600 dark:text-gray-300">Pressure</span>
                     </div>
-                    <span className="text-gray-800 dark:text-gray-200">{Math.round(node.measurements.pressure)} hPa</span>
+                    <span className={getValueColor('pressure')}>{Math.round(node.measurements.pressure)} hPa</span>
                   </div>
                 </div>
               </div>
@@ -116,15 +151,15 @@ const NodeModal: React.FC<NodeModalProps> = ({ node, onClose }) => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Wind className="text-cyan-500" size={16} />
+                      <Wind className={isAnomalous('windSpeed') ? 'text-red-500' : 'text-cyan-500'} size={16} />
                       <span className="text-gray-600 dark:text-gray-300">Wind Speed</span>
                     </div>
-                    <span className="text-gray-800 dark:text-gray-200">{Math.round(node.measurements.windSpeed)} m/s</span>
+                    <span className={getValueColor('windSpeed')}>{Math.round(node.measurements.windSpeed)} m/s</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <ArrowUp 
-                        className="text-cyan-500" 
+                        className="text-cyan-500"
                         size={16} 
                         style={{ transform: `rotate(${node.measurements.windDirection}deg)` }}
                       />
@@ -136,10 +171,10 @@ const NodeModal: React.FC<NodeModalProps> = ({ node, onClose }) => {
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <CloudRain className="text-blue-500" size={16} />
+                      <CloudRain className={isAnomalous('rainfall') ? 'text-red-500' : 'text-blue-500'} size={16} />
                       <span className="text-gray-600 dark:text-gray-300">Rainfall</span>
                     </div>
-                    <span className="text-gray-800 dark:text-gray-200">{Math.round(node.measurements.rainfall)} mm</span>
+                    <span className={getValueColor('rainfall')}>{Math.round(node.measurements.rainfall)} mm</span>
                   </div>
                 </div>
               </div>
@@ -149,34 +184,34 @@ const NodeModal: React.FC<NodeModalProps> = ({ node, onClose }) => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-300">PM2.5</span>
-                    <span className={`font-medium ${getAQIColor(node.measurements.airQuality.pm25)}`}>
+                    <span className={isAnomalous('airQuality.pm25') ? 'text-red-600 dark:text-red-400' : getAQIColor(node.measurements.airQuality.pm25)}>
                       {Math.round(node.measurements.airQuality.pm25)} µg/m³
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-300">PM10</span>
-                    <span className="text-gray-800 dark:text-gray-200">
+                    <span className={getValueColor('airQuality.pm10')}>
                       {Math.round(node.measurements.airQuality.pm10)} µg/m³
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-300">Ozone</span>
-                    <span className="text-gray-800 dark:text-gray-200">
+                    <span className={getValueColor('airQuality.ozone')}>
                       {Math.round(node.measurements.airQuality.ozone)} ppb
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-300">NO₂</span>
-                    <span className="text-gray-800 dark:text-gray-200">
+                    <span className={getValueColor('airQuality.no2')}>
                       {Math.round(node.measurements.airQuality.no2)} ppb
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Sun className="text-yellow-500" size={16} />
+                      <Sun className={isAnomalous('uvIndex') ? 'text-red-500' : 'text-yellow-500'} size={16} />
                       <span className="text-gray-600 dark:text-gray-300">UV Index</span>
                     </div>
-                    <span className="text-gray-800 dark:text-gray-200">{Math.round(node.measurements.uvIndex)}</span>
+                    <span className={getValueColor('uvIndex')}>{Math.round(node.measurements.uvIndex)}</span>
                   </div>
                 </div>
               </div>

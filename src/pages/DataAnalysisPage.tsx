@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar, LineChart, BarChart3, Filter, Download, RefreshCcw, MapPin } from 'lucide-react';
+import { Calendar, LineChart, BarChart3, Filter, Download, RefreshCcw, MapPin, AlertTriangle } from 'lucide-react';
 import { weatherNodes } from '../data/nodes';
 import { loggerInfos } from '../data/loggerInfo';
 import { timeRanges } from '../data/timeRanges';
 import { TimePeriod } from '../types/nodeHistory';
 import { loggerRegions } from '../data/nodes';
+import { isValidForAggregation } from '../utils/anomalyDetection';
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -48,7 +49,14 @@ const DataAnalysisPage = () => {
     return nodes;
   }, [viewMode, selectedRegion, selectedLogger]);
 
-  // Calculate aggregated data
+  // Separate valid and anomalous nodes
+  const { validNodes, anomalousNodes } = useMemo(() => {
+    const valid = filteredNodes.filter(node => isValidForAggregation(node));
+    const anomalous = filteredNodes.filter(node => !isValidForAggregation(node));
+    return { validNodes: valid, anomalousNodes: anomalous };
+  }, [filteredNodes]);
+
+  // Calculate aggregated data using only valid nodes
   const aggregatedData = useMemo(() => {
     const data = [];
     
@@ -72,7 +80,7 @@ const DataAnalysisPage = () => {
       };
 
       // Calculate averages for filtered nodes
-      filteredNodes.forEach(node => {
+      validNodes.forEach(node => {
         dailyData.temperature += node.measurements.temperature;
         dailyData.humidity += node.measurements.humidity;
         dailyData.pressure += node.measurements.pressure;
@@ -82,7 +90,7 @@ const DataAnalysisPage = () => {
         dailyData.uvIndex += node.measurements.uvIndex;
       });
 
-      const nodeCount = filteredNodes.length;
+      const nodeCount = validNodes.length;
       if (nodeCount > 0) {
         dailyData.temperature /= nodeCount;
         dailyData.humidity /= nodeCount;
@@ -97,7 +105,7 @@ const DataAnalysisPage = () => {
     }
 
     return data;
-  }, [dateRange, filteredNodes]);
+  }, [dateRange, validNodes]);
 
   const metrics = [
     { id: 'temperature', label: 'Temperature (°C)', color: '#ef4444' },
@@ -114,11 +122,12 @@ const DataAnalysisPage = () => {
   const systemSummary = useMemo(() => {
     return {
       totalNodes: filteredNodes.length,
-      activeNodes: filteredNodes.length,
-      averageTemp: filteredNodes.reduce((sum, node) => sum + node.measurements.temperature, 0) / filteredNodes.length,
-      averageHumidity: filteredNodes.reduce((sum, node) => sum + node.measurements.humidity, 0) / filteredNodes.length,
+      validNodes: validNodes.length,
+      anomalousNodes: anomalousNodes.length,
+      averageTemp: validNodes.reduce((sum, node) => sum + node.measurements.temperature, 0) / validNodes.length,
+      averageHumidity: validNodes.reduce((sum, node) => sum + node.measurements.humidity, 0) / validNodes.length,
     };
-  }, [filteredNodes]);
+  }, [filteredNodes, validNodes, anomalousNodes]);
 
   const getViewModeLabel = () => {
     if (viewMode === 'region' && selectedRegion) {
@@ -199,16 +208,41 @@ const DataAnalysisPage = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-500 dark:text-gray-400">Active Nodes</h3>
+            <h3 className="text-gray-500 dark:text-gray-400">Total Nodes</h3>
             <span className="text-green-500 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full text-sm">
               {viewMode === 'all' ? 'All Regions' : viewMode === 'region' ? 'Region' : 'Logger'}
             </span>
           </div>
           <div className="text-3xl font-bold text-gray-800 dark:text-white">
-            {systemSummary.activeNodes}
+            {systemSummary.totalNodes}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-gray-500 dark:text-gray-400">Valid Nodes</h3>
+            <span className="text-green-500 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full text-sm">
+              Used for Analysis
+            </span>
+          </div>
+          <div className="text-3xl font-bold text-gray-800 dark:text-white">
+            {systemSummary.validNodes}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-gray-500 dark:text-gray-400">Anomalous Nodes</h3>
+            <span className="text-orange-500 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded-full text-sm flex items-center gap-1">
+              <AlertTriangle size={12} />
+              Excluded
+            </span>
+          </div>
+          <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+            {systemSummary.anomalousNodes}
           </div>
         </div>
 
@@ -220,15 +254,8 @@ const DataAnalysisPage = () => {
           <div className="text-3xl font-bold text-gray-800 dark:text-white">
             {systemSummary.averageTemp.toFixed(1)}°C
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-500 dark:text-gray-400">Avg Humidity</h3>
-            <DropletIcon className="text-blue-500" />
-          </div>
-          <div className="text-3xl font-bold text-gray-800 dark:text-white">
-            {systemSummary.averageHumidity.toFixed(1)}%
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            From valid nodes only
           </div>
         </div>
       </div>
@@ -361,22 +388,6 @@ const ThermometerIcon = ({ className }: { className?: string }) => (
     strokeLinejoin="round"
   >
     <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" />
-  </svg>
-);
-
-const DropletIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" />
   </svg>
 );
 
